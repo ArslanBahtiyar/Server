@@ -6,6 +6,8 @@ const authRoute = require("./routes/auth");
 const userRoute = require("./routes/user");
 const communityRoute = require("./routes/community");
 const eventRoute = require("./routes/event");
+const uploadRoute = require("./routes/upload");
+const categoryRoute = require("./routes/category");
 
 const app = express();
 app.use(cors());
@@ -22,6 +24,8 @@ app.use("/auth", authRoute);
 app.use("/user", userRoute);
 app.use("/community", communityRoute);
 app.use("/events", eventRoute);
+app.use("/upload", uploadRoute);
+app.use("/categories", categoryRoute);
 
 app.listen(process.env.PORT, () => {
   console.log(`${process.env.PORT}. port dinleniyor`);

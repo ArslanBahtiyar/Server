@@ -1,7 +1,7 @@
 const pool = require("../db/dbConfig");
 
 const createEvent = async (req, res) => {
-  const { title, description, eventDate, location, categoryId } = req.body;
+  const { title, description, eventDate, location, categoryId, photo } = req.body;
   const { id: creatorId, role } = req.user;
 
   if (!title || !eventDate || !location) {
@@ -16,17 +16,18 @@ const createEvent = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO "Events" ("Title", "Description", "EventDate", "Location", "CategoryId", "CreatedByUserId", "CreatedByCommunityId")
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO "Events" ("Title", "Description", "EventDate", "Location", "CategoryId", "CreatedByUserId", "CreatedByCommunityId", "Photo")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         title,
         description || null,
         eventDate,
         location,
-        categoryId || null,
+        categoryId ? Number(categoryId) : null,
         createdByUserId,
         createdByCommunityId,
+        photo || null,
       ],
     );
 
@@ -35,6 +36,8 @@ const createEvent = async (req, res) => {
       event: result.rows[0],
     });
   } catch (err) {
+    console.log(err);
+
     res.status(500).json({ message: "Sunucu hatası.", error: err.message });
   }
 };
@@ -43,7 +46,7 @@ const createEvent = async (req, res) => {
 const updateEvent = async (req, res) => {
   const { id: eventId } = req.params;
   const { id: creatorId, role } = req.user;
-  const { title, description, eventDate, location, categoryId } = req.body;
+  const { title, description, eventDate, location, categoryId, photo } = req.body;
 
   try {
     const existing = await pool.query(
@@ -70,8 +73,8 @@ const updateEvent = async (req, res) => {
 
     const result = await pool.query(
       `UPDATE "Events"
-       SET "Title" = $1, "Description" = $2, "EventDate" = $3, "Location" = $4, "CategoryId" = $5
-       WHERE "Id" = $6
+       SET "Title" = $1, "Description" = $2, "EventDate" = $3, "Location" = $4, "CategoryId" = $5, "Photo" = $6
+       WHERE "Id" = $7
        RETURNING *`,
       [
         title || event.Title,
@@ -79,6 +82,7 @@ const updateEvent = async (req, res) => {
         eventDate || event.EventDate,
         location || event.Location,
         categoryId ?? event.CategoryId,
+        photo || event.Photo,
         eventId,
       ],
     );
@@ -127,4 +131,47 @@ const deleteEvent = async (req, res) => {
   }
 };
 
-module.exports = { createEvent, updateEvent, deleteEvent };
+const getAllEvents = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT e.*, c."Name" as "CategoryName" 
+       FROM "Events" e
+       LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+       ORDER BY e."Id" DESC`,
+    );
+
+    res.status(200).json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: "Sunucu hatası.", error: err.message });
+  }
+};
+
+const getMyEvents = async (req, res) => {
+  const { id: creatorId, role } = req.user;
+
+  try {
+    let query = `
+      SELECT e.*, c."Name" as "CategoryName" 
+      FROM "Events" e
+      LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+      WHERE `;
+    
+    let params = [creatorId];
+
+    if (role === "user") {
+      query += `e."CreatedByUserId" = $1`;
+    } else {
+      query += `e."CreatedByCommunityId" = $1`;
+    }
+
+    query += ` ORDER BY e."Id" DESC`;
+
+    const result = await pool.query(query, params);
+
+    res.status(200).json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: "Sunucu hatası.", error: err.message });
+  }
+};
+
+module.exports = { createEvent, updateEvent, deleteEvent, getAllEvents, getMyEvents };

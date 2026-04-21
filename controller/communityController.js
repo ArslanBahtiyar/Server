@@ -153,4 +153,22 @@ const getFollowedCommunities = async (req, res) => {
   }
 };
 
-module.exports = { getMyProfile, updateMyProfile, followCommunity, unfollowCommunity, getFollowedCommunities };
+const getAllCommunities = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT "Id", "Name", "ProfilePhoto", "Description" FROM "Communities" ORDER BY "Name" ASC`,
+    );
+    res.status(200).json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: "Sunucu hatası.", error: err.message });
+  }
+};
+
+module.exports = { 
+  getMyProfile, 
+  updateMyProfile, 
+  followCommunity, 
+  unfollowCommunity, 
+  getFollowedCommunities,
+  getAllCommunities
+};

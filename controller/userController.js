@@ -14,6 +14,8 @@ const getMyProfile = async (req, res) => {
       return res.status(404).json({ message: "Kullanıcı bulunamadı." });
     }
 
+    console.log(result.rows[0]);
+
     res.status(200).json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ message: "Sunucu hatası.", error: err.message });
@@ -70,6 +72,7 @@ const updateMyProfile = async (req, res) => {
         userId,
       ],
     );
+
 
     res.status(200).json({
       message: "Profil başarıyla güncellendi.",

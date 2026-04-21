@@ -44,7 +44,7 @@ const registerUser = async (req, res) => {
     res.status(201).json({
       message: "Kullanıcı başarıyla oluşturuldu.",
       token,
-      user: { id: newUser.Id, name: newUser.Name, email: newUser.Email },
+      user: { Id: newUser.Id, Name: newUser.Name, Email: newUser.Email },
     });
   } catch (err) {
     res.status(500).json({ message: "Sunucu hatası.", error: err.message });
@@ -80,7 +80,7 @@ const loginUser = async (req, res) => {
     res.status(200).json({
       message: "Giriş başarılı.",
       token,
-      user: { id: user.Id, name: user.Name, email: user.Email },
+      user: { Id: user.Id, Name: user.Name, Email: user.Email },
     });
   } catch (err) {
     res.status(500).json({ message: "Sunucu hatası.", error: err.message });
@@ -121,9 +121,9 @@ const registerCommunity = async (req, res) => {
       message: "Topluluk başarıyla oluşturuldu.",
       token,
       community: {
-        id: newCommunity.Id,
-        name: newCommunity.Name,
-        email: newCommunity.Email,
+        Id: newCommunity.Id,
+        Name: newCommunity.Name,
+        Email: newCommunity.Email,
       },
     });
   } catch (err) {
@@ -161,9 +161,9 @@ const loginCommunity = async (req, res) => {
       message: "Giriş başarılı.",
       token,
       community: {
-        id: community.Id,
-        name: community.Name,
-        email: community.Email,
+        Id: community.Id,
+        Name: community.Name,
+        Email: community.Email,
       },
     });
   } catch (err) {
