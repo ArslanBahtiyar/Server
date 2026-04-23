@@ -155,7 +155,7 @@ const getMyEvents = async (req, res) => {
       FROM "Events" e
       LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
       WHERE `;
-    
+
     let params = [creatorId];
 
     if (role === "user") {
@@ -174,4 +174,30 @@ const getMyEvents = async (req, res) => {
   }
 };
 
-module.exports = { createEvent, updateEvent, deleteEvent, getAllEvents, getMyEvents };
+const getEventById = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const result = await pool.query(
+      `SELECT e.*, c."Name" as "CategoryName", 
+              u."Name" as "UserName", 
+              com."Name" as "CommunityName"
+       FROM "Events" e
+       LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+       LEFT JOIN "Users" u ON e."CreatedByUserId" = u."Id"
+       LEFT JOIN "Communities" com ON e."CreatedByCommunityId" = com."Id"
+       WHERE e."Id" = $1`,
+      [id],
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Etkinlik bulunamadı." });
+    }
+
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: "Sunucu hatası.", error: err.message });
+  }
+};
+
+module.exports = { createEvent, updateEvent, deleteEvent, getAllEvents, getMyEvents, getEventById };

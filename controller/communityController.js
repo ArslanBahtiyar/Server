@@ -1,5 +1,7 @@
 const bcrypt = require("bcryptjs");
 const pool = require("../db/dbConfig");
+const jwt = require("jsonwebtoken");
+
 
 const getMyProfile = async (req, res) => {
   const communityId = req.user.id;
@@ -95,7 +97,7 @@ const followCommunity = async (req, res) => {
 
     // Zaten takip ediyor mu kontrol et
     const existing = await pool.query(
-      `SELECT * FROM "CommunityFollow" WHERE "UserId" = $1 AND "CommunityId" = $2`,
+      `SELECT * FROM "CommunityFollows" WHERE "UserId" = $1 AND "CommunityId" = $2`,
       [userId, communityId],
     );
     if (existing.rows.length > 0) {
@@ -103,7 +105,7 @@ const followCommunity = async (req, res) => {
     }
 
     await pool.query(
-      `INSERT INTO "CommunityFollow" ("UserId", "CommunityId") VALUES ($1, $2)`,
+      `INSERT INTO "CommunityFollows" ("UserId", "CommunityId") VALUES ($1, $2)`,
       [userId, communityId],
     );
 
@@ -120,7 +122,7 @@ const unfollowCommunity = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `DELETE FROM "CommunityFollow" WHERE "UserId" = $1 AND "CommunityId" = $2 RETURNING *`,
+      `DELETE FROM "CommunityFollows" WHERE "UserId" = $1 AND "CommunityId" = $2 RETURNING *`,
       [userId, communityId],
     );
 
@@ -141,7 +143,7 @@ const getFollowedCommunities = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT c."Id", c."Name", c."ProfilePhoto", c."Description"
-       FROM "CommunityFollow" cf
+       FROM "CommunityFollows" cf
        JOIN "Communities" c ON cf."CommunityId" = c."Id"
        WHERE cf."UserId" = $1`,
       [userId],
@@ -164,11 +166,93 @@ const getAllCommunities = async (req, res) => {
   }
 };
 
-module.exports = { 
-  getMyProfile, 
-  updateMyProfile, 
-  followCommunity, 
-  unfollowCommunity, 
+const getCommunityById = async (req, res) => {
+  const { id } = req.params;
+  let userId = null;
+
+  console.log("getCommunityById isteği, ID:", id);
+
+  // Manuel token kontrolü (opsiyonel giriş için)
+  const authHeader = req.headers["authorization"];
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.id;
+      console.log("Giriş yapmış kullanıcı ID:", userId);
+    } catch (err) {
+      console.log("Token doğrulama başarısız (sessiz devam):", err.message);
+    }
+  }
+
+  try {
+    console.log("Topluluk bilgileri çekiliyor...");
+    const communityResult = await pool.query(
+      `SELECT "Id", "Name", "ProfilePhoto", "Description", "Email" 
+       FROM "Communities" 
+       WHERE "Id" = $1`,
+      [id],
+    );
+
+    if (communityResult.rows.length === 0) {
+      console.log("Topluluk bulunamadı, ID:", id);
+      return res.status(404).json({ message: "Topluluk bulunamadı." });
+    }
+
+    let followerCount = 0;
+    let isFollowing = false;
+
+    try {
+      console.log("Takipçi bilgileri çekiliyor...");
+      const followersResult = await pool.query(
+        `SELECT COUNT(*) as count FROM "CommunityFollows" WHERE "CommunityId" = $1`,
+        [id]
+      );
+      followerCount = parseInt(followersResult.rows[0].count);
+
+      if (userId) {
+        const followCheck = await pool.query(
+          `SELECT * FROM "CommunityFollows" WHERE "UserId" = $1 AND "CommunityId" = $2`,
+          [userId, id]
+        );
+        isFollowing = followCheck.rows.length > 0;
+      }
+    } catch (followErr) {
+      console.error("Takipçi verisi çekilemedi (kritik değil):", followErr.message);
+    }
+
+    console.log("Topluluk etkinlikleri çekiliyor...");
+    const eventsResult = await pool.query(
+      `SELECT e.*, c."Name" as "CategoryName" 
+       FROM "Events" e
+       LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+       WHERE e."CreatedByCommunityId" = $1 
+       ORDER BY e."EventDate" DESC`,
+      [id]
+    );
+
+    console.log("İşlem başarıyla tamamlandı.");
+    res.status(200).json({
+      ...communityResult.rows[0],
+      followerCount,
+      isFollowing,
+      events: eventsResult.rows
+    });
+  } catch (err) {
+    console.error("getCommunityById ANA HATA:", err);
+    res.status(500).json({
+      message: "Sunucu hatası.",
+      error: err.message
+    });
+  }
+};
+
+module.exports = {
+  getMyProfile,
+  updateMyProfile,
+  followCommunity,
+  unfollowCommunity,
   getFollowedCommunities,
-  getAllCommunities
+  getAllCommunities,
+  getCommunityById
 };

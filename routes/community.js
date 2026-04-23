@@ -7,6 +7,7 @@ const {
   unfollowCommunity,
   getFollowedCommunities,
   getAllCommunities,
+  getCommunityById,
 } = require("../controller/communityController");
 const { verifyToken } = require("../middleware/authMiddleware");
 
@@ -34,12 +35,12 @@ router.get("/me", verifyToken, onlyCommunity, getMyProfile);
 router.put("/me", verifyToken, onlyCommunity, updateMyProfile);
 
 router.get("/all", verifyToken, getAllCommunities);
+router.get("/get/:id", getCommunityById);
 
 // Topluluk takip / bırak / listeleme (sadece kullanıcılar)
 router.get("/followed", verifyToken, onlyUser, getFollowedCommunities);
-router.get("/all", verifyToken, getAllCommunities);
 router.post("/:communityId/follow", verifyToken, onlyUser, followCommunity);
-router.delete("/:communityId/follow", verifyToken, onlyUser, unfollowCommunity);
+router.delete("/:communityId/unfollow", verifyToken, onlyUser, unfollowCommunity);
 
 module.exports = router;
 
