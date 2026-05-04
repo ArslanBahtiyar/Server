@@ -7,12 +7,16 @@ const pool = new Pool({
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
+  // SSL ayarını buraya ekliyoruz
+  ssl: {
+    rejectUnauthorized: false, // Neon gibi bulut sağlayıcılar için bu genellikle gereklidir
+  },
 });
 
-
-// test bağlantısı
-pool.connect()
+// Test bağlantısı
+pool
+  .connect()
   .then(() => console.log("PostgreSQL bağlandı"))
-  .catch(err => console.error("Bağlantı hatası", err));
+  .catch((err) => console.error("Bağlantı hatası", err));
 
 module.exports = pool;

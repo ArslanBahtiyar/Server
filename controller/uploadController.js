@@ -19,12 +19,12 @@ const uploadProfilePhoto = async (req, res) => {
     if (role === "user") {
       await pool.query(
         `UPDATE "Users" SET "ProfilePhoto" = $1 WHERE "Id" = $2`,
-        [photoUrl, id]
+        [photoUrl, id],
       );
     } else if (role === "community") {
       await pool.query(
         `UPDATE "Communities" SET "ProfilePhoto" = $1 WHERE "Id" = $2`,
-        [photoUrl, id]
+        [photoUrl, id],
       );
     } else {
       return res.status(403).json({ message: "Geçersiz rol." });
