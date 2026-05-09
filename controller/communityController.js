@@ -8,7 +8,10 @@ const getMyProfile = async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT "Id", "Name", "Email", "ProfilePhoto", "Description" FROM "Communities" WHERE "Id" = $1`,
+      `SELECT c."Id", c."Name", c."Email", c."ProfilePhoto", c."Description",
+              (SELECT COUNT(*) FROM "CommunityFollows" WHERE "CommunityId" = c."Id") as "FollowerCount"
+       FROM "Communities" c 
+       WHERE c."Id" = $1`,
       [communityId],
     );
 

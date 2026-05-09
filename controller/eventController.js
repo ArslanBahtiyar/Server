@@ -1,4 +1,5 @@
 const pool = require("../db/dbConfig");
+const jwt = require("jsonwebtoken");
 
 const createEvent = async (req, res) => {
   const { title, description, eventDate, location, categoryId, photo } = req.body;
@@ -132,16 +133,37 @@ const deleteEvent = async (req, res) => {
 };
 
 const getAllEvents = async (req, res) => {
+  const authHeader = req.headers["authorization"];
+  let userId = null;
+
+  // Token varsa çöz ve userId al (Giriş yapmamış kullanıcılar da etkinlikleri görebilmeli)
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.id;
+    } catch (err) {
+      // Geçersiz token durumunda userId null kalır, sorun değil
+    }
+  }
+
   try {
-    const result = await pool.query(
-      `SELECT e.*, c."Name" as "CategoryName" 
+    const query = `
+      SELECT e.*, c."Name" as "CategoryName",
+             (SELECT COUNT(*) FROM "UserEventInteractions" WHERE "EventId" = e."Id" AND "InteractionType" = 'like') as "LikeCount",
+             CASE WHEN $1::int IS NOT NULL AND EXISTS (
+               SELECT 1 FROM "UserEventInteractions" 
+               WHERE "EventId" = e."Id" AND "UserId" = $1 AND "InteractionType" = 'like'
+             ) THEN true ELSE false END as "isLiked"
        FROM "Events" e
        LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
-       ORDER BY e."Id" DESC`,
-    );
+       ORDER BY e."Id" DESC
+    `;
+    const result = await pool.query(query, [userId]);
 
     res.status(200).json(result.rows);
   } catch (err) {
+    console.error("Etkinlik listeleme hatası:", err);
     res.status(500).json({ message: "Sunucu hatası.", error: err.message });
   }
 };
@@ -176,18 +198,33 @@ const getMyEvents = async (req, res) => {
 
 const getEventById = async (req, res) => {
   const { id } = req.params;
+  const authHeader = req.headers["authorization"];
+  let userId = null;
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      userId = decoded.id;
+    } catch (err) { }
+  }
 
   try {
     const result = await pool.query(
       `SELECT e.*, c."Name" as "CategoryName", 
               u."Name" as "UserName", 
-              com."Name" as "CommunityName"
+              com."Name" as "CommunityName",
+              (SELECT COUNT(*) FROM "UserEventInteractions" WHERE "EventId" = e."Id" AND "InteractionType" = 'like') as "LikeCount",
+              CASE WHEN $2::int IS NOT NULL AND EXISTS (
+                SELECT 1 FROM "UserEventInteractions" 
+                WHERE "EventId" = e."Id" AND "UserId" = $2 AND "InteractionType" = 'like'
+              ) THEN true ELSE false END as "isLiked"
        FROM "Events" e
        LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
        LEFT JOIN "Users" u ON e."CreatedByUserId" = u."Id"
        LEFT JOIN "Communities" com ON e."CreatedByCommunityId" = com."Id"
        WHERE e."Id" = $1`,
-      [id],
+      [id, userId],
     );
 
     if (result.rows.length === 0) {
