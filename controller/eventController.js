@@ -157,6 +157,7 @@ const getAllEvents = async (req, res) => {
              ) THEN true ELSE false END as "isLiked"
        FROM "Events" e
        LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+       WHERE e."EventDate" >= CURRENT_DATE - INTERVAL '7 days'
        ORDER BY e."Id" DESC
     `;
     const result = await pool.query(query, [userId]);

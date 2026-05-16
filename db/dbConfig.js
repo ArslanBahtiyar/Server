@@ -13,10 +13,18 @@ const pool = new Pool({
   },
 });
 
-// Test bağlantısı
+// Havuz (Pool) hatalarını yakala
+pool.on('error', (err, client) => {
+  console.error('Beklenmedik veritabanı hatası (boştaki istemci):', err);
+});
+
+// Test bağlantısı ve hemen bırakma (release)
 pool
   .connect()
-  .then(() => console.log("PostgreSQL bağlandı"))
-  .catch((err) => console.error("Bağlantı hatası", err));
+  .then((client) => {
+    console.log("PostgreSQL bağlandı");
+    client.release(); // Bağlantıyı havuza geri bırak
+  })
+  .catch((err) => console.error("Veritabanı bağlantı hatası:", err));
 
 module.exports = pool;

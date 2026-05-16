@@ -33,6 +33,7 @@ const getRecommendations = async (req, res) => {
                  false as "isLiked"
                  FROM "Events" e 
                  LEFT JOIN "Categories" c ON e."CategoryId" = c."Id" 
+                 WHERE e."EventDate" >= CURRENT_DATE - INTERVAL '7 days'
                  ORDER BY e."CreatedDate" DESC LIMIT 20`
             );
             return res.status(200).json(latestEvents.rows);
@@ -46,13 +47,21 @@ const getRecommendations = async (req, res) => {
                WHERE "EventId" = e."Id" AND "UserId" = $1 AND "InteractionType" = 'like'
              ) THEN true ELSE false END as "isLiked"
              FROM "Events" e 
-             LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"`,
+             LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+             WHERE e."EventDate" >= CURRENT_DATE - INTERVAL '7 days'`,
             [userId]
         );
         const allEvents = eventsRes.rows;
 
         const categoriesRes = await pool.query(`SELECT "Id" FROM "Categories"`);
         const allCategoryIds = categoriesRes.rows.map(c => c.Id);
+
+        // 1.5 Takip edilen toplulukları çekelim
+        const followedRes = await pool.query(
+            `SELECT "CommunityId" FROM "CommunityFollows" WHERE "UserId" = $1`,
+            [userId]
+        );
+        const followedCommunityIds = followedRes.rows.map(row => row.CommunityId);
 
         // 2. Etkinlikleri Vektörleştirme Fonksiyonu
         // Özellikler: Kategori (One-hot encoding)
@@ -82,10 +91,16 @@ const getRecommendations = async (req, res) => {
             .filter(event => !interactionEventIds.includes(event.Id)) // Zaten etkileşime girdiklerini önerme
             .map(event => {
                 const eventVec = getEventVector(event);
-                const score = cosineSimilarity(userVector, eventVec);
+                let score = cosineSimilarity(userVector, eventVec);
+
+                // Takip edilen topluluksa skoru artır (Boost)
+                if (event.CreatedByCommunityId && followedCommunityIds.includes(event.CreatedByCommunityId)) {
+                    score += 0.5; // Sabit bir puan ekle veya farklı bir katsayı kullan
+                }
+
                 return { ...event, similarityScore: score };
             })
-            .filter(event => event.similarityScore > 0) // Sadece alakalı olanlar
+            .filter(event => event.similarityScore > 0) // Sadece alakalı olanlar veya takip edilenler
             .sort((a, b) => b.similarityScore - a.similarityScore) // En yüksek skor en üstte
             .slice(0, 20); // En iyi 20 öneri
 
