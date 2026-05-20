@@ -9,14 +9,10 @@ const eventRoute = require("./routes/event");
 const uploadRoute = require("./routes/upload");
 const categoryRoute = require("./routes/category");
 const interactionRoute = require("./routes/interaction");
+const commentRoute = require("./routes/comment");
 
 const app = express();
 app.use(cors());
-//!atılan isteklerin loglarını görmek için kullanılan middleware
-app.use((req, res, next) => {
-  console.log(req.path, req.method);
-  next();
-});
 //!json verileri almak için kullanılan middleware
 app.use(express.json());
 
@@ -28,6 +24,7 @@ app.use("/events", eventRoute);
 app.use("/upload", uploadRoute);
 app.use("/categories", categoryRoute);
 app.use("/interaction", interactionRoute);
+app.use("/comment", commentRoute);
 
 app.listen(process.env.PORT, () => {
   console.log(`${process.env.PORT}. port dinleniyor`);

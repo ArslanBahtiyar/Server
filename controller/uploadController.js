@@ -3,17 +3,12 @@ const pool = require("../db/dbConfig");
 const uploadProfilePhoto = async (req, res) => {
   const { id, role } = req.user;
 
-  console.log("Upload isteği alındı | id:", id, "| role:", role);
-  console.log("req.file:", req.file);
-
   if (!req.file) {
-    console.error("req.file boş — multer dosyayı parse edemedi");
     return res.status(400).json({ message: "Dosya bulunamadı." });
   }
 
   // multer-storage-cloudinary yüklenen dosyanın URL'ini req.file.path'e koyar
   const photoUrl = req.file.path;
-  console.log("Cloudinary URL:", photoUrl);
 
   try {
     if (role === "user") {

@@ -150,15 +150,29 @@ const getAllEvents = async (req, res) => {
   try {
     const query = `
       SELECT e.*, c."Name" as "CategoryName",
-             (SELECT COUNT(*) FROM "UserEventInteractions" WHERE "EventId" = e."Id" AND "InteractionType" = 'like') as "LikeCount",
-             CASE WHEN $1::int IS NOT NULL AND EXISTS (
-               SELECT 1 FROM "UserEventInteractions" 
-               WHERE "EventId" = e."Id" AND "UserId" = $1 AND "InteractionType" = 'like'
-             ) THEN true ELSE false END as "isLiked"
-       FROM "Events" e
-       LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
-       WHERE e."EventDate" >= CURRENT_DATE - INTERVAL '7 days'
-       ORDER BY e."Id" DESC
+             COALESCE(uei."LikeCount", 0)::int as "LikeCount",
+             COALESCE(comm."CommentCount", 0)::int as "CommentCount",
+             COALESCE(my_likes."isLiked", false) as "isLiked"
+      FROM "Events" e
+      LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+      LEFT JOIN (
+        SELECT "EventId", COUNT(*) as "LikeCount" 
+        FROM "UserEventInteractions" 
+        WHERE "InteractionType" = 'like'
+        GROUP BY "EventId"
+      ) uei ON e."Id" = uei."EventId"
+      LEFT JOIN (
+        SELECT "EventId", COUNT(*) as "CommentCount" 
+        FROM "Comments" 
+        GROUP BY "EventId"
+      ) comm ON e."Id" = comm."EventId"
+      LEFT JOIN (
+        SELECT "EventId", true as "isLiked" 
+        FROM "UserEventInteractions" 
+        WHERE "UserId" = $1 AND "InteractionType" = 'like'
+      ) my_likes ON e."Id" = my_likes."EventId"
+      WHERE e."EventDate" >= CURRENT_DATE - INTERVAL '7 days'
+      ORDER BY e."Id" DESC
     `;
     const result = await pool.query(query, [userId]);
 
@@ -174,9 +188,15 @@ const getMyEvents = async (req, res) => {
 
   try {
     let query = `
-      SELECT e.*, c."Name" as "CategoryName" 
+      SELECT e.*, c."Name" as "CategoryName",
+             COALESCE(comm."CommentCount", 0)::int as "CommentCount"
       FROM "Events" e
       LEFT JOIN "Categories" c ON e."CategoryId" = c."Id"
+      LEFT JOIN (
+        SELECT "EventId", COUNT(*) as "CommentCount" 
+        FROM "Comments" 
+        GROUP BY "EventId"
+      ) comm ON e."Id" = comm."EventId"
       WHERE `;
 
     let params = [creatorId];

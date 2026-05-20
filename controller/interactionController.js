@@ -9,28 +9,30 @@ const logInteraction = async (req, res) => {
     }
 
     try {
-        // Önce mevcut bir etkileşim var mı kontrol et
-        const checkQuery = `SELECT * FROM "UserEventInteractions" WHERE "UserId" = $1 AND "EventId" = $2`;
-        const checkResult = await pool.query(checkQuery, [userId, eventId]);
+        // Önce mevcut bir etkileşim var mı kontrol et (SELECT 1 LIMIT 1 — sadece varlık kontrolü, tüm satır değil)
+        const checkResult = await pool.query(
+            `SELECT 1 FROM "UserEventInteractions" WHERE "UserId" = $1 AND "EventId" = $2 LIMIT 1`,
+            [userId, eventId]
+        );
 
         let result;
         if (checkResult.rows.length > 0) {
             // Kayıt varsa güncelle (view -> like veya like -> view geçişleri için)
-            const updateQuery = `
-                UPDATE "UserEventInteractions" 
-                SET "InteractionType" = $1 
-                WHERE "UserId" = $2 AND "EventId" = $3 
-                RETURNING *;
-            `;
-            result = await pool.query(updateQuery, [interactionType, userId, eventId]);
+            result = await pool.query(
+                `UPDATE "UserEventInteractions" 
+                 SET "InteractionType" = $1 
+                 WHERE "UserId" = $2 AND "EventId" = $3 
+                 RETURNING *;`,
+                [interactionType, userId, eventId]
+            );
         } else {
             // Kayıt yoksa yeni oluştur
-            const insertQuery = `
-                INSERT INTO "UserEventInteractions" ("UserId", "EventId", "InteractionType")
-                VALUES ($1, $2, $3)
-                RETURNING *;
-            `;
-            result = await pool.query(insertQuery, [userId, eventId, interactionType]);
+            result = await pool.query(
+                `INSERT INTO "UserEventInteractions" ("UserId", "EventId", "InteractionType")
+                 VALUES ($1, $2, $3)
+                 RETURNING *;`,
+                [userId, eventId, interactionType]
+            );
         }
 
         res.status(200).json({

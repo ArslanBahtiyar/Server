@@ -171,4 +171,132 @@ const loginCommunity = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser, registerCommunity, loginCommunity };
+const { sendTemporaryPasswordEmail } = require("../utils/mailService");
+
+const generateRandomPassword = (length = 8) => {
+  // Karıştırılabilecek karakterleri (I, l, 1, O, 0 gibi) çıkarttığımız premium karakter havuzu:
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
+const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "E-posta adresi zorunludur." });
+  }
+
+  try {
+    // 1. Önce öğrenci tablosunda ara
+    let userResult = await pool.query(
+      `SELECT "Id", "Name", "Email" FROM "Users" WHERE "Email" = $1`,
+      [email.trim()]
+    );
+    let target = userResult.rows[0];
+    let role = "user";
+
+    // 2. Bulunamadıysa topluluk tablosunda ara
+    if (!target) {
+      const communityResult = await pool.query(
+        `SELECT "Id", "Name", "Email" FROM "Communities" WHERE "Email" = $1`,
+        [email.trim()]
+      );
+      target = communityResult.rows[0];
+      role = "community";
+    }
+
+    if (!target) {
+      return res.status(404).json({ message: "Bu e-posta adresine ait bir hesap bulunamadı." });
+    }
+
+    // 3. Rastgele geçici şifre oluştur
+    const tempPassword = generateRandomPassword(8);
+
+    // 4. Şifreyi hash'le ve veritabanını güncelle
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(tempPassword, salt);
+
+    if (role === "user") {
+      await pool.query(
+        `UPDATE "Users" SET "PasswordHash" = $1 WHERE "Id" = $2`,
+        [hashedPassword, target.Id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE "Communities" SET "PasswordHash" = $1 WHERE "Id" = $2`,
+        [hashedPassword, target.Id]
+      );
+    }
+
+    // 5. Geçici şifre mailini gönder
+    await sendTemporaryPasswordEmail(target.Email, target.Name, tempPassword);
+
+    res.status(200).json({
+      message: "Geçici şifreniz e-posta adresinize gönderildi. Giriş yaptıktan sonra şifrenizi değiştirmeyi unutmayın.",
+    });
+  } catch (err) {
+    console.error("Şifremi unuttum hatası:", err);
+    res.status(500).json({ message: "Sunucu hatası.", error: err.message });
+  }
+};
+
+const resetPassword = async (req, res) => {
+  const { token, newPassword } = req.body;
+
+  if (!token || !newPassword) {
+    return res.status(400).json({ message: "Token ve yeni şifre zorunludur." });
+  }
+
+  if (newPassword.length < 6) {
+    return res.status(400).json({ message: "Yeni şifre en az 6 karakter olmalıdır." });
+  }
+
+  try {
+    // 1. Token'ı doğrula
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const { id, email, role } = decoded;
+
+    // 2. Yeni şifreyi hash'le
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    // 3. Rolüne göre uygun tabloyu güncelle
+    let result;
+    if (role === "user") {
+      result = await pool.query(
+        `UPDATE "Users" SET "PasswordHash" = $1 WHERE "Id" = $2 AND "Email" = $3 RETURNING "Id"`,
+        [hashedPassword, id, email]
+      );
+    } else {
+      result = await pool.query(
+        `UPDATE "Communities" SET "PasswordHash" = $1 WHERE "Id" = $2 AND "Email" = $3 RETURNING "Id"`,
+        [hashedPassword, id, email]
+      );
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Kullanıcı kaydı bulunamadı veya şifre güncellenemedi." });
+    }
+
+    res.status(200).json({ message: "Şifreniz başarıyla güncellendi. Yeni şifrenizle giriş yapabilirsiniz." });
+  } catch (err) {
+    console.error("Şifre sıfırlama hatası:", err);
+    if (err.name === "TokenExpiredError") {
+      return res.status(401).json({ message: "Sıfırlama bağlantısının süresi dolmuş. Lütfen yeniden talep gönderin." });
+    }
+    res.status(401).json({ message: "Geçersiz veya bozuk sıfırlama bağlantısı." });
+  }
+};
+
+module.exports = {
+  registerUser,
+  loginUser,
+  registerCommunity,
+  loginCommunity,
+  forgotPassword,
+  resetPassword,
+};
