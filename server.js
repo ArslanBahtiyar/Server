@@ -26,6 +26,10 @@ app.use("/categories", categoryRoute);
 app.use("/interaction", interactionRoute);
 app.use("/comment", commentRoute);
 
+app.get("/", (req, res) => {
+  res.send("API çalışıyor ve yayında!");
+});
+
 app.listen(process.env.PORT, () => {
   console.log(`${process.env.PORT}. port dinleniyor`);
 });
