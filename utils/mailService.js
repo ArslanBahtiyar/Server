@@ -29,6 +29,7 @@ const getTransporter = async () => {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
+        family: 4, // Force IPv4 to resolve ENETUNREACH issues on Render
         connectionTimeout: 8000,
         greetingTimeout: 8000,
         socketTimeout: 8000,
@@ -44,6 +45,7 @@ const getTransporter = async () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      family: 4, // Force IPv4 to resolve ENETUNREACH issues on Render
       connectionTimeout: 8000,
       greetingTimeout: 8000,
       socketTimeout: 8000,
@@ -61,6 +63,7 @@ const getTransporter = async () => {
       user: testAccount.user,
       pass: testAccount.pass,
     },
+    family: 4, // Force IPv4
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 8000,
