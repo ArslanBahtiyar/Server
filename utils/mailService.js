@@ -4,6 +4,19 @@ const dns = require("dns");
 // Force DNS resolution to prioritize IPv4 over IPv6 to resolve ENETUNREACH issues on cloud hosts like Render
 dns.setDefaultResultOrder("ipv4first");
 
+// Custom DNS lookup that strictly forces IPv4
+const customLookup = (hostname, options, callback) => {
+  if (typeof options === "function") {
+    callback = options;
+    options = { family: 4 };
+  } else if (!options) {
+    options = { family: 4 };
+  } else {
+    options.family = 4;
+  }
+  return dns.lookup(hostname, options, callback);
+};
+
 // SMTP Transporter Oluşturma
 const getTransporter = async () => {
   console.log("🔍 Transporter oluşturma başlatıldı...");
@@ -45,7 +58,7 @@ const getTransporter = async () => {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      family: 4, // Force IPv4 to resolve ENETUNREACH issues on Render
+      lookup: customLookup, // Force IPv4 at the DNS resolution level
       connectionTimeout: 8000,
       greetingTimeout: 8000,
       socketTimeout: 8000,
@@ -63,7 +76,7 @@ const getTransporter = async () => {
       user: testAccount.user,
       pass: testAccount.pass,
     },
-    family: 4, // Force IPv4
+    lookup: customLookup, // Force IPv4
     connectionTimeout: 8000,
     greetingTimeout: 8000,
     socketTimeout: 8000,
