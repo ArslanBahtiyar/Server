@@ -21,20 +21,20 @@ const getTransporter = async () => {
     });
 
     // Gmail için özel optimize edilmiş bağlantı (Premium Best Practice)
-    if (process.env.EMAIL_HOST.includes("gmail")) {
-      console.log("➡️ Gmail servisi seçildi.");
-      return nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USER,
-          pass: process.env.EMAIL_PASS,
-        },
-        family: 4, // Force IPv4 to resolve ENETUNREACH issues on Render
-        connectionTimeout: 8000,
-        greetingTimeout: 8000,
-        socketTimeout: 8000,
-      });
-    }
+    // if (process.env.EMAIL_HOST.includes("gmail")) {
+    //   console.log("➡️ Gmail servisi seçildi.");
+    //   return nodemailer.createTransport({
+    //     service: "gmail",
+    //     auth: {
+    //       user: process.env.EMAIL_USER,
+    //       pass: process.env.EMAIL_PASS,
+    //     },
+    //     family: 4, // Force IPv4 to resolve ENETUNREACH issues on Render
+    //     connectionTimeout: 8000,
+    //     greetingTimeout: 8000,
+    //     socketTimeout: 8000,
+    //   });
+    // }
 
     console.log("➡️ Genel SMTP servisi seçildi.");
     return nodemailer.createTransport({
