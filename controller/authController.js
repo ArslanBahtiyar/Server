@@ -185,13 +185,16 @@ const generateRandomPassword = (length = 8) => {
 
 const forgotPassword = async (req, res) => {
   const { email } = req.body;
+  console.log("📩 Şifre sıfırlama isteği alındı. E-posta:", email);
 
   if (!email) {
+    console.log("⚠️ Şifre sıfırlama hatası: E-posta adresi boş.");
     return res.status(400).json({ message: "E-posta adresi zorunludur." });
   }
 
   try {
     // 1. Önce öğrenci tablosunda ara
+    console.log("🔍 Veritabanında kullanıcı aranıyor...");
     let userResult = await pool.query(
       `SELECT "Id", "Name", "Email" FROM "Users" WHERE "Email" = $1`,
       [email.trim()]
@@ -201,6 +204,7 @@ const forgotPassword = async (req, res) => {
 
     // 2. Bulunamadıysa topluluk tablosunda ara
     if (!target) {
+      console.log("🔍 Kullanıcı bulunamadı, topluluk aranıyor...");
       const communityResult = await pool.query(
         `SELECT "Id", "Name", "Email" FROM "Communities" WHERE "Email" = $1`,
         [email.trim()]
@@ -210,8 +214,11 @@ const forgotPassword = async (req, res) => {
     }
 
     if (!target) {
+      console.log("❌ Hesap bulunamadı:", email.trim());
       return res.status(404).json({ message: "Bu e-posta adresine ait bir hesap bulunamadı." });
     }
+
+    console.log(`✅ Hesap bulundu. Rol: ${role}, İsim: ${target.Name}`);
 
     // 3. Rastgele geçici şifre oluştur
     const tempPassword = generateRandomPassword(8);
@@ -220,6 +227,7 @@ const forgotPassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
+    console.log("🔄 Veritabanında şifre güncelleniyor...");
     if (role === "user") {
       await pool.query(
         `UPDATE "Users" SET "PasswordHash" = $1 WHERE "Id" = $2`,
@@ -231,15 +239,18 @@ const forgotPassword = async (req, res) => {
         [hashedPassword, target.Id]
       );
     }
+    console.log("✅ Veritabanında şifre başarıyla güncellendi.");
 
     // 5. Geçici şifre mailini gönder
+    console.log("✉️ E-posta gönderme işlemi başlatılıyor...");
     await sendTemporaryPasswordEmail(target.Email, target.Name, tempPassword);
+    console.log("✉️ E-posta başarıyla gönderildi.");
 
     res.status(200).json({
       message: "Geçici şifreniz e-posta adresinize gönderildi. Giriş yaptıktan sonra şifrenizi değiştirmeyi unutmayın.",
     });
   } catch (err) {
-    console.error("Şifremi unuttum hatası:", err);
+    console.error("❌ Şifremi unuttum hatası detayı:", err);
     res.status(500).json({ message: "Sunucu hatası.", error: err.message });
   }
 };
