@@ -1,3 +1,7 @@
+const dns = require("dns");
+// Force all DNS lookups to prefer IPv4 over IPv6 (resolves Render IPv6 ENETUNREACH issues)
+dns.setDefaultResultOrder("ipv4first");
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
