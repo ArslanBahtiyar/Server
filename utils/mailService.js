@@ -2,31 +2,47 @@ const nodemailer = require("nodemailer");
 
 // SMTP Transporter Oluşturma
 const getTransporter = async () => {
+  console.log("🔍 Transporter oluşturma başlatıldı...");
   // Eğer .env dosyasında gerçek e-posta sunucu bilgileri varsa bunları kullan
   if (
     process.env.EMAIL_HOST &&
     process.env.EMAIL_USER &&
     process.env.EMAIL_PASS
   ) {
+    console.log("📝 Gerçek SMTP ayarları yükleniyor:", {
+      host: process.env.EMAIL_HOST,
+      user: process.env.EMAIL_USER,
+      port: process.env.EMAIL_PORT,
+      secure: process.env.EMAIL_SECURE
+    });
+
     // Gmail için özel optimize edilmiş bağlantı (Premium Best Practice)
     if (process.env.EMAIL_HOST.includes("gmail")) {
+      console.log("➡️ Gmail servisi seçildi.");
       return nodemailer.createTransport({
         service: "gmail",
         auth: {
           user: process.env.EMAIL_USER,
           pass: process.env.EMAIL_PASS,
         },
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 8000,
       });
     }
 
+    console.log("➡️ Genel SMTP servisi seçildi.");
     return nodemailer.createTransport({
       host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT || 587,
+      port: parseInt(process.env.EMAIL_PORT) || 587,
       secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      connectionTimeout: 8000,
+      greetingTimeout: 8000,
+      socketTimeout: 8000,
     });
   }
 
@@ -41,12 +57,17 @@ const getTransporter = async () => {
       user: testAccount.user,
       pass: testAccount.pass,
     },
+    connectionTimeout: 8000,
+    greetingTimeout: 8000,
+    socketTimeout: 8000,
   });
 };
 
 const sendTemporaryPasswordEmail = async (email, name, tempPassword) => {
   try {
+    console.log("📩 sendTemporaryPasswordEmail fonksiyonu tetiklendi. Kime:", email);
     const transporter = await getTransporter();
+    console.log("✅ Transporter başarıyla oluşturuldu.");
 
     // Premium HTML E-Posta Tasarımı
     const htmlContent = `
@@ -178,6 +199,7 @@ const sendTemporaryPasswordEmail = async (email, name, tempPassword) => {
       html: htmlContent,
     };
 
+    console.log("📤 Mail gönderme isteği (sendMail) başlatılıyor...");
     const info = await transporter.sendMail(mailOptions);
     console.log(`✉️ Geçici şifre maili ${email} adresine gönderildi.`);
 
@@ -188,7 +210,7 @@ const sendTemporaryPasswordEmail = async (email, name, tempPassword) => {
 
     return info;
   } catch (err) {
-    console.error("E-posta gönderme hatası:", err);
+    console.error("❌ E-posta gönderme hatası (mailService içinde):", err);
     throw err;
   }
 };
