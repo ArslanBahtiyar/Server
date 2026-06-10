@@ -1,4 +1,8 @@
 const nodemailer = require("nodemailer");
+const dns = require("dns");
+
+// Force DNS resolution to prioritize IPv4 over IPv6 to resolve ENETUNREACH issues on cloud hosts like Render
+dns.setDefaultResultOrder("ipv4first");
 
 // SMTP Transporter Oluşturma
 const getTransporter = async () => {
