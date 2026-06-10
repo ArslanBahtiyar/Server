@@ -26,8 +26,21 @@ const getTransporter = async () => {
     process.env.EMAIL_USER &&
     process.env.EMAIL_PASS
   ) {
+    let resolvedHost = process.env.EMAIL_HOST;
+    try {
+      console.log(`🔍 ${process.env.EMAIL_HOST} için IPv4 DNS çözümlemesi yapılıyor...`);
+      const ips = await dns.promises.resolve4(process.env.EMAIL_HOST);
+      if (ips && ips.length > 0) {
+        resolvedHost = ips[0];
+        console.log(`✅ ${process.env.EMAIL_HOST} başarıyla IPv4 adresine çözümlendi: ${resolvedHost}`);
+      }
+    } catch (dnsErr) {
+      console.error("⚠️ DNS Çözümleme hatası, orijinal host kullanılacak:", dnsErr);
+    }
+
     console.log("📝 Gerçek SMTP ayarları yükleniyor:", {
-      host: process.env.EMAIL_HOST,
+      host: resolvedHost,
+      originalHost: process.env.EMAIL_HOST,
       user: process.env.EMAIL_USER,
       port: process.env.EMAIL_PORT,
       secure: process.env.EMAIL_SECURE
@@ -51,14 +64,16 @@ const getTransporter = async () => {
 
     console.log("➡️ Genel SMTP servisi seçildi.");
     return nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
+      host: resolvedHost,
       port: parseInt(process.env.EMAIL_PORT) || 587,
       secure: process.env.EMAIL_SECURE === "true", // true for 465, false for other ports
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      lookup: customLookup, // Force IPv4 at the DNS resolution level
+      tls: {
+        servername: process.env.EMAIL_HOST, // SSL/TLS sertifika doğrulaması için orijinal host ismini belirtiyoruz
+      },
       connectionTimeout: 8000,
       greetingTimeout: 8000,
       socketTimeout: 8000,
