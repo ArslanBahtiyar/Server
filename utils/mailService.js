@@ -86,8 +86,6 @@ const getTransporter = async () => {
 const sendTemporaryPasswordEmail = async (email, name, tempPassword) => {
   try {
     console.log("📩 sendTemporaryPasswordEmail fonksiyonu tetiklendi. Kime:", email);
-    const transporter = await getTransporter();
-    console.log("✅ Transporter başarıyla oluşturuldu.");
 
     // Premium HTML E-Posta Tasarımı
     const htmlContent = `
@@ -211,6 +209,38 @@ const sendTemporaryPasswordEmail = async (email, name, tempPassword) => {
       </body>
       </html>
     `;
+
+    // Eğer Brevo kullanılıyorsa, SMTP yerine güvenli HTTPS API üzerinden gönderim yap (Port 443 asla engellenemez)
+    if (process.env.EMAIL_HOST && process.env.EMAIL_HOST.includes("brevo")) {
+      console.log("🚀 Brevo API algılandı, HTTPS API (Port 443) üzerinden gönderiliyor...");
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "accept": "application/json",
+          "api-key": process.env.EMAIL_PASS,
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          sender: { name: "Sende Katıl", email: process.env.EMAIL_USER },
+          to: [{ email: email, name: name }],
+          subject: "Sende Katıl - Geçici Şifreniz",
+          htmlContent: htmlContent
+        })
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(`Brevo HTTPS API Hatası (${response.status}): ${JSON.stringify(errData)}`);
+      }
+
+      const resData = await response.json();
+      console.log("✉️ Brevo HTTPS API ile mail başarıyla gönderildi:", resData);
+      return resData;
+    }
+
+    // Klasik SMTP Fallback (Gmail vb. için)
+    const transporter = await getTransporter();
+    console.log("✅ Transporter başarıyla oluşturuldu.");
 
     const mailOptions = {
       from: `"Sende Katıl" <${transporter.options.auth.user}>`,
