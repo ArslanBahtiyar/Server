@@ -18,6 +18,11 @@ const registerUser = async (req, res) => {
       .json({ message: "Ad, email, şifre ve departman alanları zorunludur." });
   }
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return res.status(400).json({ message: "Geçersiz e-posta formatı." });
+  }
+
   try {
     const existing = await pool.query(
       `SELECT "Email" FROM "Users" WHERE "Email" = $1`,
@@ -92,6 +97,11 @@ const registerCommunity = async (req, res) => {
 
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Ad, email ve şifre zorunludur." });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email.trim())) {
+    return res.status(400).json({ message: "Geçersiz e-posta formatı." });
   }
 
   try {
