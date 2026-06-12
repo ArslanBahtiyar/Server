@@ -23,6 +23,10 @@ const registerUser = async (req, res) => {
     return res.status(400).json({ message: "Geçersiz e-posta formatı." });
   }
 
+  if (password.length < 6) {
+    return res.status(400).json({ message: "Şifre en az 6 karakter olmalıdır." });
+  }
+
   try {
     const existing = await pool.query(
       `SELECT "Email" FROM "Users" WHERE "Email" = $1`,
@@ -102,6 +106,10 @@ const registerCommunity = async (req, res) => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email.trim())) {
     return res.status(400).json({ message: "Geçersiz e-posta formatı." });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ message: "Şifre en az 6 karakter olmalıdır." });
   }
 
   try {

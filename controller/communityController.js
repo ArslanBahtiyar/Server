@@ -29,6 +29,17 @@ const updateMyProfile = async (req, res) => {
   const communityId = req.user.id;
   const { name, email, description, profilePhoto, password } = req.body;
 
+  if (email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({ message: "Geçersiz e-posta formatı." });
+    }
+  }
+
+  if (password && password.trim().length < 6) {
+    return res.status(400).json({ message: "Şifre en az 6 karakter olmalıdır." });
+  }
+
   try {
     const existing = await pool.query(
       `SELECT * FROM "Communities" WHERE "Id" = $1`,
